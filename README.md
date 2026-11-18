@@ -49,7 +49,13 @@ Free hosting suits a pilot, not live billing: free services sleep, storage is ca
      pnpm --filter @solar-epc/api db:seed:prod
    ```
    This creates the company, one admin, the GST settings and the subsidy scheme, with no sample products or customers. It does nothing if a company already exists. Optional: `ADMIN_NAME`, `COMPANY_NAME`, `COMPANY_STATE_CODE` (default `24`), `COMPANY_PHONE`.
-5. **Sign in** at the web URL, then fill in Settings (address, GSTIN, bank, UPI, warranty, milestones) and add your products and kits.
+5. **Load the product catalogue (optional).** `catalogue/products.csv` holds a starter list (Adani, Waaree, Tata, Goldi, Pahal panels; Xwatt and Polycab inverters; structure, cables, ACDB/DCDB, earthing, LA, meters, services). Prices are indicative: edit them to your distributor rates first. Then:
+   ```bash
+   DATABASE_URL="<connection string>" DRY_RUN=1 pnpm --filter @solar-epc/api db:import:products   # check only
+   DATABASE_URL="<connection string>" pnpm --filter @solar-epc/api db:import:products
+   ```
+   Rows are matched on `sku`, so running it again updates prices instead of adding duplicates. Nothing is deleted. Use `PRODUCTS_CSV=<path>` for another file.
+6. **Sign in** at the web URL, then fill in Settings (address, GSTIN, bank, UPI, warranty, milestones) and build your kits from the products.
 
 If you change a service's URL, update `WEB_ORIGIN` on the API and redeploy, or update `NEXT_PUBLIC_API_URL` on the web app and redeploy it (that value is baked in at build time).
 

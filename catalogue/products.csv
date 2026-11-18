@@ -1,0 +1,32 @@
+sku,name,category,brand,model,specification,unit,hsnSac,gstRate,price,wattPeak,capacityKw,isActive
+MOD-ADANI-550-PERC-DCR,Adani 550 Wp Mono PERC DCR,MODULE,Adani Solar,Mono PERC 550 Wp,DCR module (eligible for PM Surya Ghar subsidy),NOS,8541,5,15000,550,,true
+MOD-ADANI-580-TOPCON-DCR,Adani 580 Wp TOPCon Bifacial DCR,MODULE,Adani Solar,TOPCon Bifacial 580 Wp,DCR module (eligible for PM Surya Ghar subsidy),NOS,8541,5,16500,580,,true
+MOD-WAAREE-550-PERC-DCR,Waaree 550 Wp Mono PERC DCR,MODULE,Waaree,Mono PERC 550 Wp,DCR module (eligible for PM Surya Ghar subsidy),NOS,8541,5,15000,550,,true
+MOD-WAAREE-590-TOPCON-DCR,Waaree 590 Wp TOPCon Bifacial DCR,MODULE,Waaree,TOPCon Bifacial 590 Wp,DCR module (eligible for PM Surya Ghar subsidy),NOS,8541,5,17000,590,,true
+MOD-TATA-545-PERC-DCR,Tata Power 545 Wp Mono PERC DCR,MODULE,Tata Power Solar,Mono PERC 545 Wp,DCR module (eligible for PM Surya Ghar subsidy),NOS,8541,5,16000,545,,true
+MOD-GOLDI-580-TOPCON-DCR,Goldi 580 Wp TOPCon DCR,MODULE,Goldi Solar,TOPCon 580 Wp,DCR module (eligible for PM Surya Ghar subsidy),NOS,8541,5,16000,580,,true
+MOD-PAHAL-545-PERC-DCR,Pahal 545 Wp Mono PERC DCR,MODULE,Pahal Solar,Mono PERC 545 Wp,DCR module (eligible for PM Surya Ghar subsidy),NOS,8541,5,14500,545,,true
+MOD-WAAREE-550-PERC-NDCR,Waaree 550 Wp Mono PERC Non-DCR,MODULE,Waaree,Mono PERC 550 Wp,Non-DCR module (not eligible for subsidy),NOS,8541,5,8800,550,,true
+INV-XWATT-3K-1P,Xwatt 3 kW On-Grid Inverter 1-Phase,INVERTER,Xwatt,3 kW single phase,On-grid string inverter with Wi-Fi monitoring,NOS,8504,5,23000,,3,true
+INV-XWATT-5K-1P,Xwatt 5 kW On-Grid Inverter 1-Phase,INVERTER,Xwatt,5 kW single phase,On-grid string inverter with Wi-Fi monitoring,NOS,8504,5,32000,,5,true
+INV-XWATT-10K-3P,Xwatt 10 kW On-Grid Inverter 3-Phase,INVERTER,Xwatt,10 kW three phase,On-grid string inverter with Wi-Fi monitoring,NOS,8504,5,54000,,10,true
+INV-POLYCAB-3K-1P,Polycab 3 kW On-Grid Inverter 1-Phase,INVERTER,Polycab,3 kW single phase,On-grid string inverter with Wi-Fi monitoring,NOS,8504,5,25000,,3,true
+INV-POLYCAB-5K-1P,Polycab 5 kW On-Grid Inverter 1-Phase,INVERTER,Polycab,5 kW single phase,On-grid string inverter with Wi-Fi monitoring,NOS,8504,5,34000,,5,true
+INV-POLYCAB-10K-3P,Polycab 10 kW On-Grid Inverter 3-Phase,INVERTER,Polycab,10 kW three phase,On-grid string inverter with Wi-Fi monitoring,NOS,8504,5,57000,,10,true
+STR-GI-ELEVATED,GI/HDG Elevated Mounting Structure,STRUCTURE,,Hot-dip galvanised,Elevated structure per kW with fasteners,KW,7308,18,5000,,,true
+CAB-DC-4SQMM,DC Solar Cable 4 sq mm Copper,CABLE_DC,Polycab,4 sq mm Cu,UV-resistant solar DC cable,M,8544,18,55,,,true
+CAB-AC-4SQMM-ARM,AC Cable 4 sq mm 2-Core Armoured,CABLE_AC,Polycab,4 sq mm 2C armoured,Inverter to ACDB / meter,M,8544,18,95,,,true
+DB-DCDB,DCDB with SPD and Fuse,DISTRIBUTION_BOX,Havells,DCDB,DC distribution box with surge protection and fuses,NOS,8537,18,3500,,,true
+DB-ACDB,ACDB with MCB and SPD,DISTRIBUTION_BOX,Havells,ACDB,AC distribution box with MCB and surge protection,NOS,8537,18,3500,,,true
+EARTH-CHEM-KIT,Chemical Earthing Kit,EARTHING,JMV,Chemical electrode set,Electrode + backfill compound + pit cover,SET,8538,18,3200,,,true
+EARTH-STRIP-GI,GI Earthing Strip / Wire,EARTHING,,GI strip,Earthing conductor,M,7217,18,60,,,true
+LA-CONVENTIONAL,Lightning Arrester,LIGHTNING_ARRESTER,JMV,Conventional copper LA,With mounting pipe,NOS,8535,18,4000,,,true
+MC4-PAIR,MC4 Connector Pair,OTHER,,MC4 male/female,IP67 connector pair,SET,8536,18,100,,,true
+CONDUIT-LOT,PVC/GI Conduit and Accessories,OTHER,,Conduit set,"Conduits, bends, saddles and cable ties",LOT,3917,18,2200,,,true
+MON-WIFI,Wi-Fi Monitoring Dongle,OTHER,,Wi-Fi stick,Online generation monitoring,NOS,8517,18,2000,,,true
+METER-NET,Bi-directional Net Meter,NET_METER,,DISCOM-approved make,Net meter as per DISCOM norms,NOS,9028,18,5500,,,true
+METER-GEN,Generation (Solar) Meter,NET_METER,,Single phase,Solar generation meter,NOS,9028,18,2500,,,true
+BAT-LI-5KWH,Lithium Battery 5 kWh,BATTERY,Luminous,5 kWh LiFePO4,For hybrid systems only,NOS,8507,18,90000,,,false
+SRV-INSTALL,Installation and Commissioning,SERVICE,,,Installation testing and commissioning per kW,KW,9954,18,4000,,,true
+SRV-LIAISON,DISCOM Liaisoning and Net-Metering,SERVICE,,,DISCOM application and net-meter paperwork,JOB,9983,18,5000,,,true
+SRV-TRANSPORT,Transportation,SERVICE,,,Material transport to site,JOB,9965,18,2500,,,true
