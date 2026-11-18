@@ -31,6 +31,30 @@ pnpm test        # tax engine tests
 pnpm typecheck
 ```
 
+## Deploy for free (pilot)
+
+Free hosting suits a pilot, not live billing: free services sleep, storage is capped and backups aren't guaranteed. The setup below is Render for the two apps and Supabase (or Neon) for Postgres. Render has no India region, so `render.yaml` uses Singapore.
+
+1. **Push this repo to GitHub.**
+2. **Create the database.** In Supabase, create a project (pick Mumbai if offered) and copy the **Session pooler** connection string: Connect → Session pooler. The direct string is IPv6-only and won't work from Render. With Neon, copy the direct (not pooled) string.
+3. **Create the services.** In Render, go to New → Blueprint, pick the repo, and it reads `render.yaml`. When asked, fill in:
+   - `DATABASE_URL`: the string from step 2.
+   - `WEB_ORIGIN`: `https://solar-epc-web.onrender.com` (the web service's URL; check it once created).
+   - `NEXT_PUBLIC_API_URL`: `https://solar-epc-api.onrender.com/api`.
+
+   The API image installs Chromium for PDFs and runs `prisma migrate deploy` each time it starts.
+4. **Create the first admin.** Render's free plan has no shell, so run this once from your own machine against the same database:
+   ```bash
+   DATABASE_URL="<connection string>" ADMIN_EMAIL="you@example.com" ADMIN_PASSWORD="<12+ characters>" \
+     pnpm --filter @solar-epc/api db:seed:prod
+   ```
+   This creates the company, one admin, the GST settings and the subsidy scheme, with no sample products or customers. It does nothing if a company already exists. Optional: `ADMIN_NAME`, `COMPANY_NAME`, `COMPANY_STATE_CODE` (default `24`), `COMPANY_PHONE`.
+5. **Sign in** at the web URL, then fill in Settings (address, GSTIN, bank, UPI, warranty, milestones) and add your products and kits.
+
+If you change a service's URL, update `WEB_ORIGIN` on the API and redeploy, or update `NEXT_PUBLIC_API_URL` on the web app and redeploy it (that value is baked in at build time).
+
+To test the API image locally: `docker build -f apps/api/Dockerfile -t solar-epc-api .`
+
 ## Rules the code enforces
 
 - Money is Decimal end to end (decimal.js in `packages/core`, Decimal(14,2) in Postgres). No JS floats in pricing or tax.
@@ -48,6 +72,6 @@ Prices, kits, warranty terms, milestone percentages and the SAC code in `apps/ap
 ## Not built yet
 
 - PDF rendering runs inside the request with the local Chrome. The BullMQ job and S3 storage from the plan are still to do.
-- Credit note PDF, debit notes, user management screen, logo upload, Sentry, staging deploy, backups.
+- Credit note PDF, debit notes, user management screen, logo upload, Sentry, backups.
 - Supply-only and service-only jobs tax the whole contract at the goods or service rate, pending the CA's answer.
 - Phase 2 and 3 items (milestone billing, WhatsApp, Razorpay, e-invoicing, project tracker, reports, multi-company).

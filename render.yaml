@@ -1,0 +1,32 @@
+# Render Blueprint: the API (Docker, with Chromium for PDFs) and the web app, both on the free plan.
+# The database is not here: use Supabase or Neon and paste its connection string into DATABASE_URL.
+# Render has no India region; Singapore is the closest. Free services sleep after 15 minutes idle.
+services:
+  - type: web
+    name: solar-epc-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./apps/api/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false # Postgres connection string (Supabase: use the Session pooler string)
+      - key: JWT_SECRET
+        generateValue: true
+      - key: WEB_ORIGIN
+        sync: false # the web app's URL, e.g. https://solar-epc-web.onrender.com
+
+  - type: web
+    name: solar-epc-web
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: corepack enable && pnpm install --frozen-lockfile --filter @solar-epc/web... && pnpm --filter @solar-epc/web build
+    startCommand: pnpm --filter @solar-epc/web start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_API_URL
+        sync: false # the API's URL plus /api, e.g. https://solar-epc-api.onrender.com/api (read at build time)
