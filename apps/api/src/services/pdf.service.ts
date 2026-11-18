@@ -144,7 +144,12 @@ export async function htmlToPdf(html: string): Promise<Buffer> {
   try {
     await page.setContent(html, { waitUntil: 'networkidle', timeout: 15000 });
     await page.evaluate(() => document.fonts.ready.then(() => undefined));
-    return await page.pdf({ format: 'A4', printBackground: true, preferCSSPageSize: true });
+    // A template may supply a running footer (<template id="pdf-footer">) printed in the page margin.
+    const footer = await page.evaluate(() => (document.getElementById('pdf-footer') as HTMLTemplateElement | null)?.innerHTML ?? null);
+    return await page.pdf({
+      format: 'A4', printBackground: true, preferCSSPageSize: true,
+      ...(footer ? { displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: footer } : {}),
+    });
   } finally {
     await page.close();
   }

@@ -2,7 +2,19 @@ import { formatINR } from '@solar-epc/core';
 import { UNIT_LABEL, esc, fmtDate, page } from './styles';
 import type { QuotationDoc, SellerDoc } from './types';
 
+// The quotation flows across pages instead of using fixed page boxes, so a long bill of materials
+// continues on the next page. Page numbers and the company line come from the PDF footer
+// (see #pdf-footer and htmlToPdf), which can never be left alone on an empty page.
 const CSS = `
+@page { size: A4; margin: 10mm 0 14mm; }
+.page { width: auto; min-height: 0; padding: 0 12mm; display: block; break-after: auto; break-inside: auto; }
+.page + .page { break-before: page; }
+table.grid td { padding: 4px 7px; }
+table.grid tr { break-inside: avoid; }
+.sum, .box, .stat, .savings { break-inside: avoid; }
+.endblock { break-inside: avoid; }
+h2 { break-after: avoid; }
+.footnote { margin-top: 6px; font-size: 8pt; color: var(--muted); }
 .savings { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
 .stat { border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; }
 .stat small { color: var(--muted); font-size: 8.5pt; display: block; }
@@ -86,14 +98,13 @@ export function renderQuotationHtml(d: QuotationDoc): string {
     </div>
     <h2>Bill of Materials</h2>
     <table class="grid">
-      <thead><tr><th style="width:6%">#</th><th style="width:${d.showLinePrices ? 26 : 31}%">Item</th><th>Specification / Make</th><th class="num" style="width:9%">Qty</th><th style="width:9%">Unit</th>${d.showLinePrices ? '<th class="num" style="width:15%">Amount (₹)</th>' : ''}</tr></thead>
+      <thead><tr><th style="width:6%">#</th><th style="width:${d.showLinePrices ? 30 : 36}%">Item</th><th>Specification / Make</th><th class="num" style="width:9%">Qty</th><th style="width:9%">Unit</th>${d.showLinePrices ? '<th class="num" style="width:15%">Amount (₹)</th>' : ''}</tr></thead>
       <tbody>${bom}</tbody>
     </table>
-    <div class="cols" style="margin-top:6px; align-items:flex-start">
+    <div class="cols endblock" style="margin-top:6px; align-items:flex-start">
       <div>${savings}</div>
-      <div style="margin-top:14px">${summary}</div>
+      <div style="margin-top:14px">${summary}${hasSubsidy ? `<p class="footnote">*Subsidy is credited by the government directly to the customer's bank account after commissioning, subject to approval.</p>` : ''}</div>
     </div>
-    <div class="foot"><span>${hasSubsidy ? "*Subsidy is credited by the government directly to the customer's bank account after commissioning, subject to approval." : ''}</span><span style="white-space:nowrap">Page 1 of 2</span></div>
   </section>`;
 
   const list = (items: string[]) => `<ul class="plain">${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
@@ -118,7 +129,7 @@ export function renderQuotationHtml(d: QuotationDoc): string {
     ${d.documentsRequired.length ? `<h2>Documents Required from Customer</h2><div class="chips">${d.documentsRequired.map((x) => `<span class="chip">${esc(x)}</span>`).join('')}</div>` : ''}
     ${d.terms.length ? `<h2>Terms &amp; Conditions</h2><ol class="terms">${d.terms.map((t) => `<li>${esc(t)}</li>`).join('')}</ol>` : ''}
     ${d.notes ? `<p class="small" style="margin-top:8px"><b>Note:</b> ${esc(d.notes)}</p>` : ''}
-    <div class="cols" style="margin-top:16px">
+    <div class="cols endblock" style="margin-top:16px">
       <div class="box bank"><div><div class="label">Bank details</div>
         <div>Account name: ${esc(se.accountName ?? se.name)}</div>
         <div>Bank: ${esc([se.bankName, se.bankBranch].filter(Boolean).join(', ') || '—')}</div>
@@ -127,8 +138,12 @@ export function renderQuotationHtml(d: QuotationDoc): string {
       <div class="box"><div class="label">Acceptance</div>
         <div class="sign"><div>Customer signature<small>Date: ________</small></div><div>Authorised signatory<small>For ${esc(se.name)}</small></div></div></div>
     </div>
-    <div class="foot"><span>${[se.name, se.phone, se.email].filter(Boolean).map(esc).join(' · ')}</span><span>Page 2 of 2</span></div>
   </section>`;
 
-  return page(`Quotation ${d.number} v${d.version}`, CSS, page1 + page2);
+  // Read by htmlToPdf and printed at the bottom of every page; pageNumber/totalPages are filled in by Chrome.
+  const footer = `<template id="pdf-footer"><div style="width:100%; margin:0 12mm; padding-top:5px; border-top:1px solid #d5dbe3; display:flex; justify-content:space-between; font-family:Inter, system-ui, sans-serif; font-size:7.5pt; color:#5b6673; -webkit-print-color-adjust:exact">
+    <span>${[se.name, se.phone, se.email].filter(Boolean).map(esc).join(' · ')} · Quotation ${esc(d.number)} v${d.version}</span>
+    <span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div></template>`;
+
+  return page(`Quotation ${d.number} v${d.version}`, CSS, page1 + page2 + footer);
 }
