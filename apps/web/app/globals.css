@@ -1,0 +1,16 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-navy: #0f3557;
+  --color-navy-soft: #1c4a75;
+  --color-amber: #f0a500;
+  --color-ink: #1c2530;
+  --color-muted: #5b6673;
+  --color-line: #d5dbe3;
+  --color-tint: #eef1f5;
+  --font-sans: Inter, 'Noto Sans Gujarati', system-ui, sans-serif;
+  --font-display: 'Space Grotesk', Inter, system-ui, sans-serif;
+}
+
+body { background: #f6f8fa; color: var(--color-ink); font-family: var(--font-sans); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }

@@ -1,0 +1,663 @@
+// Solar EPC Quotation & Invoice App — Prisma schema (PostgreSQL)
+// Money: Decimal(14,2) in rupees (maps to decimal.js in Prisma — never JS floats).
+// Multi-tenant: every business table carries companyId.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// Enums
+// ─────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  SALES
+  ACCOUNTS
+}
+
+enum ProductCategory {
+  MODULE
+  INVERTER
+  STRUCTURE
+  CABLE_DC
+  CABLE_AC
+  DISTRIBUTION_BOX // ACDB / DCDB
+  EARTHING
+  LIGHTNING_ARRESTER
+  NET_METER
+  BATTERY
+  SERVICE // installation, commissioning, liaisoning
+  OTHER
+}
+
+enum Unit {
+  NOS
+  SET
+  M
+  KW
+  JOB
+  LOT
+}
+
+enum KitQtyMode {
+  FIXED     // quantity as entered
+  PER_PANEL // quantity × panel count
+  PER_KW    // quantity × system size (kW)
+}
+
+enum PhaseType {
+  SINGLE
+  THREE
+}
+
+enum SupplyType {
+  EPC_COMPOSITE // supply + install → 70:30 valuation
+  SUPPLY_ONLY
+  SERVICE_ONLY
+}
+
+enum LineKind {
+  GOODS
+  SERVICE
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  CONVERTED
+}
+
+enum DocType {
+  QUOTATION
+  PROFORMA
+  TAX_INVOICE
+  CREDIT_NOTE
+  DEBIT_NOTE
+}
+
+enum InvoiceType {
+  PROFORMA
+  TAX_INVOICE
+}
+
+enum InvoiceStatus {
+  DRAFT          // editable, no number yet
+  ISSUED         // locked, numbered
+  PARTIALLY_PAID
+  PAID
+  CANCELLED      // only via credit note
+}
+
+enum PaymentMode {
+  UPI
+  NEFT_RTGS
+  CHEQUE
+  CASH
+  RAZORPAY
+}
+
+enum ProjectStatus {
+  CONFIRMED
+  DISCOM_APPLIED
+  MATERIAL_DELIVERED
+  INSTALLED
+  NET_METER_INSTALLED
+  COMMISSIONED
+  SUBSIDY_CLAIMED
+  CLOSED
+}
+
+enum DocumentKind {
+  ELECTRICITY_BILL
+  AADHAAR
+  PAN
+  BANK_PROOF
+  PROPERTY_PROOF
+  PHOTO
+  DISCOM_APPLICATION
+  NET_METER_APPROVAL
+  COMMISSIONING_REPORT
+  OTHER
+}
+
+// ─────────────────────────────────────────────
+// Tenant, users, access
+// ─────────────────────────────────────────────
+
+model Company {
+  id           String  @id @default(cuid())
+  name         String
+  legalName    String?
+  gstin        String?
+  stateCode    String  // e.g. "24" for Gujarat
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  pincode      String
+  phone        String?
+  email        String?
+  website      String?
+  logoUrl      String?
+
+  // Bank details printed on documents
+  bankName      String?
+  bankBranch    String?
+  accountName   String?
+  accountNumber String?
+  ifsc          String?
+  upiId         String?
+
+  defaultTerms  String? // default T&C text for quotations, one term per line
+  jurisdiction  String?
+  // Defaults printed on quotations: warranty rows, scope lists, documents required,
+  // payment milestones, units/kW/day and tariff. Shape: DocumentDefaults in src/lib/snapshots.ts
+  documentDefaults Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  memberships     Membership[]
+  customers       Customer[]
+  products        Product[]
+  kits            Kit[]
+  taxConfigs      TaxConfig[]
+  subsidySchemes  SubsidyScheme[]
+  numberSeries    NumberSeries[]
+  quotations      Quotation[]
+  invoices        Invoice[]
+  creditNotes     CreditNote[]
+  projects        Project[]
+  auditLogs       AuditLog[]
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  phone        String?
+  passwordHash String?  // null if using an external auth provider
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  memberships Membership[]
+  auditLogs   AuditLog[]
+}
+
+model Membership {
+  id        String  @id @default(cuid())
+  companyId String
+  userId    String
+  role      Role
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+}
+
+// ─────────────────────────────────────────────
+// Customers & sites
+// ─────────────────────────────────────────────
+
+model Customer {
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  phone        String
+  email        String?
+  gstin        String?  // null = unregistered (most residential)
+  addressLine1 String
+  addressLine2 String?
+  city         String
+  pincode      String
+  stateCode    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company    Company     @relation(fields: [companyId], references: [id])
+  sites      Site[]
+  quotations Quotation[]
+  invoices   Invoice[]
+  projects   Project[]
+
+  @@index([companyId, phone])
+  @@index([companyId, name])
+}
+
+model Site {
+  id               String     @id @default(cuid())
+  customerId       String
+  label            String?    // "Home", "Factory roof"
+  addressLine1     String
+  addressLine2     String?
+  city             String
+  pincode          String
+  stateCode        String
+  discomName       String?    // DGVCL / UGVCL / MGVCL / PGVCL / Torrent
+  consumerNumber   String?
+  sanctionedLoadKw Decimal?   @db.Decimal(8, 2)
+  phase            PhaseType?
+  roofType         String?
+
+  customer   Customer    @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  quotations Quotation[]
+  projects   Project[]
+}
+
+// ─────────────────────────────────────────────
+// Catalogue & kits
+// ─────────────────────────────────────────────
+
+model Product {
+  id            String          @id @default(cuid())
+  companyId     String
+  sku           String?
+  name          String
+  category      ProductCategory
+  brand         String?
+  model         String?
+  specification String?
+  unit          Unit
+  hsnSac        String
+  gstRate       Decimal         @db.Decimal(5, 2) // rate when sold standalone
+  price         Decimal         @db.Decimal(14, 2)
+  wattPeak      Int?            // modules only, e.g. 550
+  capacityKw    Decimal?        @db.Decimal(8, 2) // inverters
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  company        Company         @relation(fields: [companyId], references: [id])
+  kitItems       KitItem[]
+  quotationLines QuotationLine[]
+
+  @@unique([companyId, sku])
+  @@index([companyId, category])
+}
+
+model Kit {
+  id           String     @id @default(cuid())
+  companyId    String
+  name         String     // "3.3 kW On-Grid – Standard"
+  systemSizeKw Decimal?   @db.Decimal(8, 2)
+  phase        PhaseType?
+  description  String?
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  company Company   @relation(fields: [companyId], references: [id])
+  items   KitItem[]
+}
+
+model KitItem {
+  id        String     @id @default(cuid())
+  kitId     String
+  productId String
+  qtyMode   KitQtyMode @default(FIXED)
+  quantity  Decimal    @db.Decimal(10, 3)
+  sortOrder Int        @default(0)
+
+  kit     Kit     @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+}
+
+// ─────────────────────────────────────────────
+// Configurable tax & subsidy (never hard-coded)
+// ─────────────────────────────────────────────
+
+model TaxConfig {
+  id             String   @id @default(cuid())
+  companyId      String
+  effectiveFrom  DateTime
+  epcGoodsShare  Decimal  @db.Decimal(5, 4) // 0.7000
+  goodsRate      Decimal  @db.Decimal(5, 2) // 5.00
+  serviceRate    Decimal  @db.Decimal(5, 2) // 18.00
+  goodsHsn       String   // printed on EPC goods line
+  serviceSac     String   // printed on EPC service line
+  note           String?
+  createdAt      DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, effectiveFrom])
+}
+
+model SubsidyScheme {
+  id            String        @id @default(cuid())
+  companyId     String
+  name          String        // "PM Surya Ghar – Muft Bijli Yojana"
+  effectiveFrom DateTime
+  effectiveTo   DateTime?
+  maxAmount     Decimal?      @db.Decimal(14, 2)
+  isActive      Boolean       @default(true)
+
+  company Company       @relation(fields: [companyId], references: [id])
+  slabs   SubsidySlab[]
+}
+
+model SubsidySlab {
+  id          String  @id @default(cuid())
+  schemeId    String
+  fromKw      Decimal @db.Decimal(8, 2) // inclusive
+  toKw        Decimal @db.Decimal(8, 2) // inclusive
+  amountPerKw Decimal @db.Decimal(14, 2)
+
+  scheme SubsidyScheme @relation(fields: [schemeId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────
+// Document numbering (FY-wise, row-locked)
+// ─────────────────────────────────────────────
+
+model NumberSeries {
+  id            String  @id @default(cuid())
+  companyId     String
+  docType       DocType
+  financialYear String  // "26-27"
+  prefix        String  // "NSE/" → NSE/26-27/0001
+  nextNumber    Int     @default(1)
+  padding       Int     @default(4)
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@unique([companyId, docType, financialYear])
+}
+
+// ─────────────────────────────────────────────
+// Quotations (versioned)
+// ─────────────────────────────────────────────
+
+model Quotation {
+  id          String          @id @default(cuid())
+  companyId   String
+  customerId  String
+  siteId      String?
+  number      String          // NSE/Q/26-27/0042
+  status      QuotationStatus @default(DRAFT)
+  validUntil  DateTime?
+  createdById String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  company  Company            @relation(fields: [companyId], references: [id])
+  customer Customer           @relation(fields: [customerId], references: [id])
+  site     Site?              @relation(fields: [siteId], references: [id])
+  versions QuotationVersion[]
+  project  Project?
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+}
+
+model QuotationVersion {
+  id           String     @id @default(cuid())
+  quotationId  String
+  version      Int        // 1, 2, 3…
+  supplyType   SupplyType @default(EPC_COMPOSITE)
+  systemSizeKw Decimal    @db.Decimal(8, 2)
+  panelCount   Int?
+  kitId        String?    // kit used to build it (reference only)
+
+  placeOfSupplyStateCode String
+  isInterState           Boolean
+
+  // Snapshots — frozen at creation, never recomputed from live tables
+  sellerSnapshot Json // company name, GSTIN, address, bank
+  buyerSnapshot  Json // customer + site details
+  taxSnapshot    Json // TaxConfig values used
+
+  // Totals
+  contractValue  Decimal @db.Decimal(14, 2) // pre-GST
+  goodsValue     Decimal @db.Decimal(14, 2)
+  serviceValue   Decimal @db.Decimal(14, 2)
+  cgst           Decimal @db.Decimal(14, 2)
+  sgst           Decimal @db.Decimal(14, 2)
+  igst           Decimal @db.Decimal(14, 2)
+  roundOff       Decimal @db.Decimal(14, 2) @default(0)
+  total          Decimal @db.Decimal(14, 2)
+  subsidyAmount  Decimal @db.Decimal(14, 2) @default(0)
+  netCostToCustomer Decimal @db.Decimal(14, 2)
+
+  // Savings estimate shown on proposal
+  annualGenerationKwh Decimal? @db.Decimal(12, 2)
+  annualSavings       Decimal? @db.Decimal(14, 2)
+  paybackYears        Decimal? @db.Decimal(5, 2)
+  tariffPerUnit       Decimal? @db.Decimal(6, 2)
+
+  terms     String?
+  notes     String?
+  pdfUrl    String?
+  createdById String
+  createdAt DateTime @default(now())
+
+  quotation  Quotation          @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  lines      QuotationLine[]
+  milestones PaymentMilestone[]
+  invoices   Invoice[]
+
+  @@unique([quotationId, version])
+}
+
+model QuotationLine {
+  id            String   @id @default(cuid())
+  versionId     String
+  productId     String?
+  sortOrder     Int
+  kind          LineKind
+  name          String   // snapshot
+  specification String?
+  hsnSac        String
+  unit          Unit
+  quantity      Decimal  @db.Decimal(10, 3)
+  unitPrice     Decimal  @db.Decimal(14, 2)
+  amount        Decimal  @db.Decimal(14, 2)
+  showPrice     Boolean  @default(false) // EPC quotes usually hide line prices
+
+  version QuotationVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  product Product?         @relation(fields: [productId], references: [id])
+}
+
+model PaymentMilestone {
+  id        String  @id @default(cuid())
+  versionId String
+  sortOrder Int
+  label     String  // "On order confirmation"
+  percent   Decimal @db.Decimal(5, 2)
+  amount    Decimal @db.Decimal(14, 2)
+  invoiceId String? @unique // set once billed
+
+  version QuotationVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  invoice Invoice?         @relation(fields: [invoiceId], references: [id])
+}
+
+// ─────────────────────────────────────────────
+// Invoices, payments, credit notes
+// ─────────────────────────────────────────────
+
+model Invoice {
+  id                 String        @id @default(cuid())
+  companyId          String
+  customerId         String
+  projectId          String?
+  quotationVersionId String?
+  type               InvoiceType
+  status             InvoiceStatus @default(DRAFT)
+  number             String?       // assigned only on ISSUE
+  issueDate          DateTime?
+  dueDate            DateTime?
+  milestoneLabel     String?
+
+  placeOfSupplyStateCode String
+  isInterState           Boolean
+  reverseCharge          Boolean @default(false)
+
+  sellerSnapshot Json
+  buyerSnapshot  Json
+  taxSnapshot    Json
+
+  taxableValue Decimal @db.Decimal(14, 2)
+  cgst         Decimal @db.Decimal(14, 2)
+  sgst         Decimal @db.Decimal(14, 2)
+  igst         Decimal @db.Decimal(14, 2)
+  roundOff     Decimal @db.Decimal(14, 2) @default(0)
+  total        Decimal @db.Decimal(14, 2)
+  amountPaid   Decimal @db.Decimal(14, 2) @default(0)
+  amountInWords String?
+
+  // E-invoicing / e-way bill (filled when applicable)
+  irn          String?  @unique
+  ackNo        String?
+  ackDate      DateTime?
+  signedQrData String?
+  ewayBillNo   String?
+
+  pdfUrl     String?
+  issuedById String?
+  issuedAt   DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company          Company           @relation(fields: [companyId], references: [id])
+  customer         Customer          @relation(fields: [customerId], references: [id])
+  project          Project?          @relation(fields: [projectId], references: [id])
+  quotationVersion QuotationVersion? @relation(fields: [quotationVersionId], references: [id])
+  lines            InvoiceLine[]
+  payments         Payment[]
+  creditNotes      CreditNote[]
+  milestone        PaymentMilestone?
+
+  @@unique([companyId, number]) // NULLs allowed for drafts
+  @@index([companyId, status])
+  @@index([companyId, issueDate])
+}
+
+model InvoiceLine {
+  id           String   @id @default(cuid())
+  invoiceId    String
+  sortOrder    Int
+  kind         LineKind
+  description  String
+  detail       String?
+  hsnSac       String
+  unit         Unit
+  quantity     Decimal  @db.Decimal(10, 3)
+  unitPrice    Decimal  @db.Decimal(14, 2)
+  taxableValue Decimal  @db.Decimal(14, 2)
+  gstRate      Decimal  @db.Decimal(5, 2)
+  cgst         Decimal  @db.Decimal(14, 2)
+  sgst         Decimal  @db.Decimal(14, 2)
+  igst         Decimal  @db.Decimal(14, 2)
+  total        Decimal  @db.Decimal(14, 2)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id              String      @id @default(cuid())
+  invoiceId       String
+  amount          Decimal     @db.Decimal(14, 2)
+  receivedOn      DateTime
+  mode            PaymentMode
+  reference       String?     // UTR / cheque no.
+  razorpayLinkId  String?
+  razorpayPaymentId String?   @unique
+  note            String?
+  recordedById    String?
+  createdAt       DateTime    @default(now())
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+}
+
+model CreditNote {
+  id           String   @id @default(cuid())
+  companyId    String
+  invoiceId    String
+  number       String
+  issueDate    DateTime
+  reason       String
+  taxableValue Decimal  @db.Decimal(14, 2)
+  cgst         Decimal  @db.Decimal(14, 2)
+  sgst         Decimal  @db.Decimal(14, 2)
+  igst         Decimal  @db.Decimal(14, 2)
+  total        Decimal  @db.Decimal(14, 2)
+  pdfUrl       String?
+  createdAt    DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+  invoice Invoice @relation(fields: [invoiceId], references: [id])
+
+  @@unique([companyId, number])
+}
+
+// ─────────────────────────────────────────────
+// Projects & DISCOM documents
+// ─────────────────────────────────────────────
+
+model Project {
+  id                  String        @id @default(cuid())
+  companyId           String
+  customerId          String
+  siteId              String?
+  quotationId         String?       @unique
+  status              ProjectStatus @default(CONFIRMED)
+  systemSizeKw        Decimal       @db.Decimal(8, 2)
+  discomApplicationNo String?
+  portalApplicationNo String?       // national subsidy portal reference
+  netMeterApprovedOn  DateTime?
+  installedOn         DateTime?
+  commissionedOn      DateTime?
+  subsidyClaimedOn    DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  company   Company           @relation(fields: [companyId], references: [id])
+  customer  Customer          @relation(fields: [customerId], references: [id])
+  site      Site?             @relation(fields: [siteId], references: [id])
+  quotation Quotation?        @relation(fields: [quotationId], references: [id])
+  documents ProjectDocument[]
+  invoices  Invoice[]
+
+  @@index([companyId, status])
+}
+
+model ProjectDocument {
+  id         String       @id @default(cuid())
+  projectId  String
+  kind       DocumentKind
+  fileUrl    String
+  fileName   String
+  uploadedAt DateTime     @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+// ─────────────────────────────────────────────
+// Audit trail
+// ─────────────────────────────────────────────
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String?
+  entity    String   // "Invoice", "Quotation"…
+  entityId  String
+  action    String   // "CREATE", "UPDATE", "ISSUE", "CANCEL"
+  diff      Json?
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+  user    User?   @relation(fields: [userId], references: [id])
+
+  @@index([companyId, entity, entityId])
+}

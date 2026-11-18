@@ -1,0 +1,13 @@
+{
+  "name": "solar-epc",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "dev:api": "pnpm --filter @solar-epc/api dev",
+    "dev:web": "pnpm --filter @solar-epc/web dev",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @solar-epc/api db:migrate",
+    "db:seed": "pnpm --filter @solar-epc/api db:seed"
+  }
+}
